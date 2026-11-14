@@ -1,0 +1,42 @@
+name: "Radxa Rock 5B Common Hardware Prerequisites"
+stages:
+  before-install:
+    - name: "Enable non-free-firmware on Debian for Realtek RTL8125B 2.5GbE"
+      if: '[ -f /etc/apt/sources.list.d/debian.sources ]'
+      commands:
+        - "sed -i 's/^Components: main.*$/Components: main contrib non-free non-free-firmware/' /etc/apt/sources.list.d/debian.sources"
+
+  install:
+    - name: "Install Rock 5B hardware & SPI flash utilities"
+      packages:
+        install:
+          - firmware-realtek
+          - gdisk
+          - mtd-utils
+          - parted
+          - u-boot-tools
+        refresh: false
+        upgrade: false
+      directories:
+        - path: /var/lib/iscsi
+          permissions: 0755
+          owner: 0
+          group: 0
+      files:
+        - path: /etc/dracut.conf.d/50-rock5b.conf
+          permissions: 0644
+          owner: 0
+          group: 0
+          content: |
+            add_drivers+=" fixed gpio-regulator pwm-regulator pwm-rockchip rk808-regulator fan53555 i2c-rk3x gpio-rockchip io-domain phy-rockchip-naneng-combphy phy-rockchip-snps-pcie3 phy-rockchip-pcie phy-rockchip-inno-usb2 phy-rockchip-usbdp phy-rockchip-emmc nvme nvme-core dw_mmc-rockchip sdhci-of-dwcmshc r8169 spi-rockchip-sfc "
+
+  after-install:
+    - name: "Stage rk3588-rock-5b.dtb into /boot/dtb/rockchip for Mainline U-Boot EFI"
+      commands:
+        - mkdir -p /boot/dtb/rockchip
+        - cp -rf /usr/lib/linux-image-*/rockchip/* /boot/dtb/rockchip/
+        - test -s /boot/dtb/rockchip/rk3588-rock-5b.dtb
+    - name: "Disable and mask multipathd so CSI/iSCSI block storage is never intercepted on SBC nodes"
+      commands:
+        - systemctl disable multipathd.service multipathd.socket
+        - systemctl mask multipathd.service multipathd.socket

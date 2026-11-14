@@ -1,0 +1,49 @@
+name: "Radxa Rock 5B Hardware, SPI U-Boot & Device Tree Integration"
+stages:
+  rootfs:
+    - name: "Persist /var/lib/iscsi initiator state on COS_PERSISTENT (/etc/iscsi is already in 00_rootfs.yaml)"
+      if: '[ ! -e "/run/cos/recovery_mode" ] && [ ! -e "/run/cos/autoreset_mode" ] && [ ! -e "/run/cos/uki_install_mode" ]'
+      environment_file: /run/cos/custom-layout.env
+      environment:
+        CUSTOM_BIND_MOUNTS: "/var/lib/iscsi"
+
+  initramfs:
+    - name: "Ensure multipathd stays masked for CSI/iSCSI volume compatibility"
+      commands:
+        - systemctl disable multipathd.service multipathd.socket 2>/dev/null || true
+        - systemctl mask multipathd.service multipathd.socket 2>/dev/null || true
+
+  after-install:
+    - name: "Sync rk3588-rock-5b.dtb to COS_GRUB and ensure SPI U-Boot EFI on /dev/mtd0"
+      commands:
+        - /usr/sbin/rock5b-sync-boot --sync-dtb --sync-spi
+
+  after-upgrade-chroot:
+    - name: "Sync updated rk3588-rock-5b.dtb to COS_GRUB and update SPI U-Boot if changed"
+      commands:
+        - /usr/sbin/rock5b-sync-boot --sync-dtb --sync-spi
+
+  after-reset:
+    - name: "Sync rk3588-rock-5b.dtb to COS_GRUB after reset"
+      commands:
+        - /usr/sbin/rock5b-sync-boot --sync-dtb
+
+  boot:
+    - name: "Configure multipath blacklist and start iSCSI initiator for storage workloads"
+      commands:
+        - |
+          if [ ! -f /etc/multipath.conf ]; then
+            cat <<'EOF' > /etc/multipath.conf
+          defaults {
+              user_friendly_names yes
+          }
+          blacklist {
+              devnode "^(ram|raw|loop|fd|md|dm-|sr|scd|st|nvme[0-9]+|mmcblk[0-9]+|sd[a-z]+)[0-9]*"
+          }
+          EOF
+          fi
+          modprobe iscsi_tcp 2>/dev/null || true
+          modprobe dm_crypt 2>/dev/null || true
+          if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files iscsid.service >/dev/null 2>&1; then
+            systemctl start iscsid.service || true
+          fi

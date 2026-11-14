@@ -1,0 +1,14 @@
+# Build artifacts and generated images
+build/
+dist/
+*.img
+*.img.zst
+*.img.xz
+*.iso
+*.raw
+*.tar
+
+# Local overrides and temporary cloud-configs
+*.local.yaml
+cloud-config.yaml
+.env

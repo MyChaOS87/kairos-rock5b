@@ -1,0 +1,57 @@
+#cloud-config
+# Generic example cloud-config for provisioning a Radxa Rock 5B with kairos-rock5b.
+# Copy this file, customize your SSH key, hostname, networking, and optional orchestrator settings,
+# and pass it to `make build-installer CLOUD_CONFIG=./my-cloud-config.yaml`.
+
+hostname: rock5b-node-01
+
+users:
+  - name: kairos
+    groups:
+      - admin
+      - sudo
+    shell: /bin/bash
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExamplePublicKeyPlaceholderOnly user@example.com
+
+install:
+  # Target the onboard M.2 NVMe drive (use /dev/mmcblk0 for eMMC).
+  # Use poweroff: true so headless boards shut down cleanly instead of re-entering the SD installer on reboot.
+  device: /dev/nvme0n1
+  auto: true
+  poweroff: true
+  grub_options:
+    extra_cmdline: "console=ttyS2,1500000 console=tty1 cgroup_enable=cpuset cgroup_memory=1 cgroup_enable=memory net.ifnames=1"
+
+stages:
+  initramfs:
+    - name: "Configure passwordless sudo for admin group"
+      files:
+        - path: /etc/sudoers.d/90-kairos-admin
+          permissions: 0440
+          owner: 0
+          group: 0
+          content: |
+            %admin ALL=(ALL) NOPASSWD: ALL
+    - name: "Configure DHCP (or RFC 5737 static IP) on onboard 2.5GbE (r8169)"
+      files:
+        - path: /etc/systemd/network/10-lan.network
+          permissions: 0644
+          owner: 0
+          group: 0
+          content: |
+            [Match]
+            Driver=r8169
+
+            [Network]
+            DHCP=yes
+            # Or replace DHCP=yes with a static configuration:
+            # Address=192.0.2.11/24
+            # Gateway=192.0.2.1
+            # DNS=192.0.2.1
+
+# Optional: configure K3s when using a VARIANT=k3s image
+# k3s:
+#   enabled: true
+#   env:
+#     K3S_TOKEN: "replace-with-cluster-token"

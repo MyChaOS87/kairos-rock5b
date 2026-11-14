@@ -1,0 +1,19 @@
+name: "Debian Trixie Backports Mainline Kernel Profile"
+stages:
+  before-install:
+    - name: "Configure official Debian trixie-backports repository and kernel/firmware pin"
+      files:
+        - path: /etc/apt/sources.list.d/trixie-backports.list
+          permissions: 0644
+          owner: 0
+          group: 0
+          content: |
+            deb http://deb.debian.org/debian trixie-backports main contrib non-free non-free-firmware
+        - path: /etc/apt/preferences.d/90-backports-kernel
+          permissions: 0644
+          owner: 0
+          group: 0
+          content: |
+            Package: linux-* firmware-*
+            Pin: release n=trixie-backports
+            Pin-Priority: 990
