@@ -2,17 +2,23 @@ ARG BUILDPLATFORM
 ARG KAIROS_INIT_VERSION=v4.5.0
 ARG BASE_IMAGE=debian:trixie-slim
 ARG UBOOT_VERSION=v2026.10
+ARG UBOOT_SHA256=f943a88389c8fd70a6b0d061a88267465e143c7ca6ea2b75837ab20f5b60c739
 ARG RKBIN_COMMIT=3e288fe814e059dd06833495f845cab04ac20a5c
 ARG RKBIN_DDR=bin/rk35/rk3588_ddr_lp4_2112MHz_lp5_2400MHz_v1.24.bin
+ARG RKBIN_DDR_SHA256=2853a0da7ab895af43d50615af73eccf0694115dd0202483ee1c93c9071a42c3
 ARG RKBIN_BL31=bin/rk35/rk3588_bl31_v1.56.elf
+ARG RKBIN_BL31_SHA256=2864c2fc36333e03e7e3fe6459225d320d310850b4ac7620d1f3601efb7d4a9b
 
 FROM quay.io/kairos/kairos-init:${KAIROS_INIT_VERSION} AS kairos-init
 
 FROM --platform=${BUILDPLATFORM:-linux/arm64} debian:trixie-slim AS uboot
 ARG UBOOT_VERSION
+ARG UBOOT_SHA256
 ARG RKBIN_COMMIT
 ARG RKBIN_DDR
+ARG RKBIN_DDR_SHA256
 ARG RKBIN_BL31
+ARG RKBIN_BL31_SHA256
 RUN set -eu; \
     export DEBIAN_FRONTEND=noninteractive; \
     apt-get update -qq; \
@@ -24,7 +30,14 @@ RUN set -eu; \
     mkdir -p /src/rkbin /src/uboot /out; \
     curl -fsSL "https://raw.githubusercontent.com/rockchip-linux/rkbin/${RKBIN_COMMIT}/${RKBIN_DDR}" -o /src/rkbin/ddr.bin; \
     curl -fsSL "https://raw.githubusercontent.com/rockchip-linux/rkbin/${RKBIN_COMMIT}/${RKBIN_BL31}" -o /src/rkbin/bl31.elf; \
-    curl -fsSL "https://github.com/u-boot/u-boot/archive/refs/tags/${UBOOT_VERSION}.tar.gz" | tar -xz --strip-components=1 -C /src/uboot; \
+    curl -fsSL "https://github.com/u-boot/u-boot/archive/refs/tags/${UBOOT_VERSION}.tar.gz" -o /tmp/uboot.tar.gz; \
+    printf '%s  %s\n' \
+      "${RKBIN_DDR_SHA256}" "/src/rkbin/ddr.bin" \
+      "${RKBIN_BL31_SHA256}" "/src/rkbin/bl31.elf" \
+      "${UBOOT_SHA256}" "/tmp/uboot.tar.gz" \
+      | sha256sum -c -; \
+    tar -xzf /tmp/uboot.tar.gz --strip-components=1 -C /src/uboot; \
+    rm -f /tmp/uboot.tar.gz; \
     make -C /src/uboot rock5b-rk3588_defconfig; \
     BL31=/src/rkbin/bl31.elf ROCKCHIP_TPL=/src/rkbin/ddr.bin CROSS_COMPILE=aarch64-linux-gnu- \
       make -C /src/uboot -j"$(nproc)"; \

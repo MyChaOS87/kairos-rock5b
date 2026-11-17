@@ -23,7 +23,7 @@ flowchart LR
 
     subgraph Build["Branchless Multi-Stage Dockerfile"]
         S1["Stage 1: AS kairos-init\nUpstream kairos-init binary"]
-        S2["Stage 2: AS uboot on BUILDPLATFORM\nDenx Mainline U-Boot + pinned rkbin\n-> u-boot-rockchip-spi.bin\n-> u-boot-rockchip.bin"]
+        S2["Stage 2: AS uboot on BUILDPLATFORM\nDenx Mainline U-Boot + pinned rkbin\n(sha256sum -c verified)\n-> u-boot-rockchip-spi.bin\n-> u-boot-rockchip.bin"]
         S3["Stage 3: Final Target Rootfs (linux/arm64)\nCopy U-Boot, Sync Script, OEM Hook and Profiles\nRun /kairos-init -s all -m generic -x\nStamp /etc/os-release and /etc/kairos-release\nGate on /kairos-init validate"]
     end
 
@@ -144,7 +144,7 @@ sequenceDiagram
 ```
 
 ### Why `rock5b-sync-boot` Checks `findmnt` and `cmp -s`
-1. **No Dual VFAT RW Mount**: During `after-install` and `after-reset`, `kairos-agent` already holds `COS_GRUB` (`FAT32`) mounted read-write, whereas `after-upgrade-chroot` runs *before* `refreshESPFromCtx` mounts the ESP. Checking `findmnt -rn -S "${ESP_DEV}" -o TARGET` lets [`rock5b-sync-boot.sh`](../scripts/rock5b-sync-boot.sh) reuse an existing mount point when present and perform a clean temporary mount/unmount only during upgrades, preventing VFAT dual-write corruption.
+1. **No Dual VFAT RW Mount**: During `after-install` and `after-reset`, `kairos-agent` already holds `COS_GRUB` (`FAT32`) mounted read-write, whereas `after-upgrade-chroot` runs *before* `refreshESPFromCtx` mounts the ESP. Checking `findmnt -rn -S "${ESP_DEV}" -o TARGET` lets [`rock5b-sync-boot.sh`](../scripts/rock5b-sync-boot.sh) reuse an existing mount point when present and perform a clean temporary mount/unmount only during upgrades, backed by `EXIT` and `RETURN` cleanup traps so any copy or sync failure unmounts the temporary mount point before exit and prevents VFAT dual-write corruption.
 2. **Zero Unnecessary SPI NOR Wear**: [`rock5b-sync-boot.sh`](../scripts/rock5b-sync-boot.sh) and [`flash-spi-uboot.sh`](../scripts/flash-spi-uboot.sh) compare `head -c "${SPI_SIZE}" /dev/mtd0` byte-for-byte (`cmp -s`) against `/usr/share/rock5b-uboot/u-boot-rockchip-spi.bin`, calling `flashcp -v` only when the U-Boot binary actually changes.
 
 ---

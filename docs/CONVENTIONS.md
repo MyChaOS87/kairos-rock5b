@@ -17,7 +17,7 @@ Always use standard documentation placeholders in examples and tests:
 
 ## 2. Version- & Setup-Agnostic Documentation Rule
 
-- **Single source of truth for pinned versions**: Store concrete component tags, `RKBIN_*` refs, and optional kernel ABI pins (`BASE_IMAGE`, `BPO_KERNEL_VERSION`, `LTS_KERNEL_VERSION`, `K3S_VERSION`, `KAIROS_INIT_VERSION`, `AURORABOOT_VERSION`, `UBOOT_VERSION`, `KAIROS_VERSION`, `RKBIN_*`) centrally in [`versions.conf`](../versions.conf) (included by [`Makefile`](../Makefile) and sourced by CI/installer scripts, with standalone fallbacks in [`Dockerfile`](../Dockerfile)).
+- **Single source of truth for pinned versions**: Store concrete component tags, `RKBIN_*` refs, SHA-256 checksums, and optional kernel ABI pins (`BASE_IMAGE`, `BPO_KERNEL_VERSION`, `LTS_KERNEL_VERSION`, `K3S_VERSION`, `KAIROS_INIT_VERSION`, `AURORABOOT_VERSION`, `UBOOT_VERSION`, `UBOOT_SHA256`, `KAIROS_VERSION`, `RKBIN_*`) centrally in [`versions.conf`](../versions.conf) (included by [`Makefile`](../Makefile) and sourced by CI/installer scripts, with standalone fallbacks in [`Dockerfile`](../Dockerfile)).
 - **No hardcoded versions in prose or diagrams**: General documentation (`README.md`, `AGENTS.md`, `CONTEXT.md`, `docs/*.md`) describes kernel tracks and toolchains generically across official Debian releases without hardcoding ephemeral kernel, U-Boot, `kairos-init`, or orchestrator version numbers. Use symbolic placeholders such as `<profile>`, `<kernel_ver>`, `<variant>`, and `<orchestrator_ver>` when illustrating tag or release formats.
 - **No stale line anchors**: Link to Markdown files by path only (`./docs/ARCHITECTURE.md`), never `#L<line>` anchors.
 

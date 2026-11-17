@@ -7,8 +7,21 @@ set -euo pipefail
 
 SYNC_DTB=false
 SYNC_SPI=false
+DTB_SRC="${DTB_SRC:-/boot/dtb/rockchip}"
 MTD_DEV="${MTD_DEV:-/dev/mtd0}"
 SPI_BIN="${SPI_BIN:-/usr/share/rock5b-uboot/u-boot-rockchip-spi.bin}"
+ESP_MNT=""
+
+cleanup_esp() {
+  if [ -n "${ESP_MNT}" ]; then
+    if mountpoint -q "${ESP_MNT}"; then
+      umount "${ESP_MNT}" || true
+    fi
+    rmdir "${ESP_MNT}" 2>/dev/null || true
+    ESP_MNT=""
+  fi
+}
+trap cleanup_esp EXIT
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -27,33 +40,35 @@ while [ "$#" -gt 0 ]; do
 done
 
 sync_dtb() {
-  local esp_dev existing_mnt esp_mnt
+  local esp_dev existing_mnt
   esp_dev="$(blkid -L COS_GRUB || true)"
-  if [ -z "${esp_dev}" ] || [ ! -d /boot/dtb/rockchip ]; then
-    echo "WARNING: COS_GRUB partition or /boot/dtb/rockchip not found; skipping DTB sync" >&2
+  if [ -z "${esp_dev}" ] || [ ! -d "${DTB_SRC}" ]; then
+    echo "WARNING: COS_GRUB partition or ${DTB_SRC} not found; skipping DTB sync" >&2
     return 0
   fi
 
   existing_mnt="$(findmnt -rn -S "${esp_dev}" -o TARGET 2>/dev/null | head -n 1 || true)"
   if [ -n "${existing_mnt}" ] && [ -d "${existing_mnt}" ]; then
     mkdir -p "${existing_mnt}/dtb/rockchip"
-    cp -rfL /boot/dtb/rockchip/* "${existing_mnt}/dtb/rockchip/"
+    cp -rfL "${DTB_SRC}"/* "${existing_mnt}/dtb/rockchip/"
     sync
-    echo "Synced /boot/dtb/rockchip to existing mount ${existing_mnt}/dtb/rockchip"
+    echo "Synced ${DTB_SRC} to existing mount ${existing_mnt}/dtb/rockchip"
     return 0
   fi
 
-  esp_mnt="$(mktemp -d)"
-  if mount "${esp_dev}" "${esp_mnt}"; then
-    mkdir -p "${esp_mnt}/dtb/rockchip"
-    cp -rfL /boot/dtb/rockchip/* "${esp_mnt}/dtb/rockchip/"
+  ESP_MNT="$(mktemp -d)"
+  trap cleanup_esp RETURN
+  if mount "${esp_dev}" "${ESP_MNT}"; then
+    mkdir -p "${ESP_MNT}/dtb/rockchip"
+    cp -rfL "${DTB_SRC}"/* "${ESP_MNT}/dtb/rockchip/"
     sync
-    umount "${esp_mnt}"
-    echo "Synced /boot/dtb/rockchip to ${esp_dev} (/dtb/rockchip)"
+    umount "${ESP_MNT}"
+    echo "Synced ${DTB_SRC} to ${esp_dev} (/dtb/rockchip)"
   else
     echo "WARNING: Failed to mount ${esp_dev} (COS_GRUB) to sync DTB" >&2
   fi
-  rmdir "${esp_mnt}" || true
+  cleanup_esp
+  trap - RETURN
 }
 
 sync_spi() {

@@ -69,9 +69,12 @@ build:
 	$(CONTAINER_ENGINE) build --platform linux/arm64 \
 		--build-arg KAIROS_INIT_VERSION="$(KAIROS_INIT_VERSION)" \
 		--build-arg UBOOT_VERSION="$(UBOOT_VERSION)" \
+		--build-arg UBOOT_SHA256="$(UBOOT_SHA256)" \
 		--build-arg RKBIN_COMMIT="$(RKBIN_COMMIT)" \
 		--build-arg RKBIN_DDR="$(RKBIN_DDR)" \
+		--build-arg RKBIN_DDR_SHA256="$(RKBIN_DDR_SHA256)" \
 		--build-arg RKBIN_BL31="$(RKBIN_BL31)" \
+		--build-arg RKBIN_BL31_SHA256="$(RKBIN_BL31_SHA256)" \
 		--build-arg BASE_IMAGE="$(BASE_IMAGE)" \
 		--build-arg PROFILE="$(PROFILE)" \
 		--build-arg KERNEL_PACKAGE="$(KERNEL_PACKAGE)" \

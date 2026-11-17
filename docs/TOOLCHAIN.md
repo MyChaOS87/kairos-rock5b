@@ -41,6 +41,10 @@ All image versions and optional kernel pins live centrally in [`versions.conf`](
 | `KAIROS_INIT_VERSION` | Pinned in [`versions.conf`](../versions.conf) | Upstream `quay.io/kairos/kairos-init` tag |
 | `AURORABOOT_VERSION` | Pinned in [`versions.conf`](../versions.conf) | Upstream `quay.io/kairos/auroraboot` tag |
 | `UBOOT_VERSION` | Pinned in [`versions.conf`](../versions.conf) | Upstream `u-boot/u-boot` release tag compiled from source in `AS uboot` |
+| `UBOOT_SHA256` | Pinned in [`versions.conf`](../versions.conf) | SHA-256 digest of the upstream `UBOOT_VERSION` release tarball verified before extraction |
+| `RKBIN_COMMIT` | Pinned in [`versions.conf`](../versions.conf) | Upstream `rockchip-linux/rkbin` commit hash supplying DRAM TPL and TF-A BL31 blobs |
+| `RKBIN_DDR` / `RKBIN_DDR_SHA256` | Pinned in [`versions.conf`](../versions.conf) | Relative path and SHA-256 digest of the RK3588 DRAM initialization TPL blob (`ddr.bin`) |
+| `RKBIN_BL31` / `RKBIN_BL31_SHA256` | Pinned in [`versions.conf`](../versions.conf) | Relative path and SHA-256 digest of the TF-A EL3 Secure Monitor ELF (`bl31.elf`) |
 | `KAIROS_VERSION` | Pinned in [`versions.conf`](../versions.conf) | Base SemVer prefix stamped into `KAIROS_VERSION` / `KAIROS_RELEASE` (`<ver>-<profile>-<kver>`) |
 | `CLOUD_CONFIG` | `./docs/examples/cloud-config.example.yaml` | Node `cloud-config.yaml` embedded into `/config.yaml` by `make build-installer` |
 | `OUTPUT_DIR` | `./build` | Host directory receiving `kairos-rock5b-installer.raw`, `.sha256`, and extracted U-Boot binaries |
@@ -71,11 +75,12 @@ make build REGISTRY=ghcr.io/<your-org>
 
 [`Dockerfile`](../Dockerfile) compiles U-Boot in an isolated `FROM --platform=${BUILDPLATFORM:-linux/arm64} ... AS uboot` stage so builds run at native host CPU speed (`gcc-aarch64-linux-gnu` cross-compilation on `x86_64`, cached across rootfs/profile edits):
 - Pulls upstream `u-boot/u-boot` at `UBOOT_VERSION` together with pinned `rockchip-linux/rkbin` DRAM initialization TPL and TF-A BL31 binaries (`RKBIN_COMMIT`, `RKBIN_DDR`, `RKBIN_BL31`).
+- Verifies all three artifacts (`ddr.bin`, `bl31.elf`, and the downloaded U-Boot release tarball) via `sha256sum -c` against `RKBIN_DDR_SHA256`, `RKBIN_BL31_SHA256`, and `UBOOT_SHA256` before extraction or compilation.
 - Compiles `rock5b-rk3588_defconfig` to emit:
   - `/usr/share/rock5b-uboot/u-boot-rockchip-spi.bin` (SPI NOR image for `/dev/mtd0`)
   - `/usr/share/rock5b-uboot/u-boot-rockchip.bin` (block-device image embedded at sector 64 of the MicroSD installer)
 
-To update U-Boot or `rkbin`, update `UBOOT_VERSION` and `RKBIN_*` in [`versions.conf`](../versions.conf).
+To update U-Boot or `rkbin`, update `UBOOT_VERSION`, `RKBIN_*`, and their corresponding `UBOOT_SHA256` / `RKBIN_*_SHA256` digests in [`versions.conf`](../versions.conf) (and keep the fallback `ARG` defaults in [`Dockerfile`](../Dockerfile) in sync).
 
 ---
 
